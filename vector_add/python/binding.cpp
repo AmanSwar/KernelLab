@@ -14,9 +14,22 @@ torch::Tensor naive_vec_add(torch::Tensor vecA , torch::Tensor vecB){
 }
 
 
+torch::Tensor multielement_vec_add(torch::Tensor vecA , torch::Tensor vecB){
+    TORCH_CHECK(vecA.is_cuda() , "vecA not in CUDA");
+    TORCH_CHECK(vecB.is_cuda() , "vecB not in CUDA");
+    int size = vecA.size(0);
+
+    auto output = torch::zeros_like(vecA);
+    launchMultiElement(vecA.data_ptr<float>(), vecB.data_ptr<float>(), output.data_ptr<float>(), size);
+
+    return output;
+
+}
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME , m){
     m.def("naive_vec_add" , &naive_vec_add , "naive implementation of vector addition");
+    m.def("multielement_vec_add", &multielement_vec_add, "multielement implementation of vector addition");
 }
+
 
