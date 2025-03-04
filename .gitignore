@@ -2,3 +2,5 @@
 **/build/
 **/cuda_blur.egg-info/
 **/dist/
+**/.egg-info/
+*.out/
