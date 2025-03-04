@@ -1,4 +1,3 @@
-#include <__clang_cuda_builtin_vars.h>
 #include <cuda_runtime.h>
 #include "../include/greyscale_kernel.h"
 
@@ -33,3 +32,11 @@ __global__ void grayscale_unrolled(
     }
 }
 
+
+void launch_multipixel(const float *input, float *output, int width, int height, int channels, int pixelsPerThread){
+    dim3 threadsPerBlock(32 , 32);
+    dim3 numberOfBlocks((width + threadsPerBlock.x -1) / threadsPerBlock.x , (height + threadsPerBlock.y - 1) / threadsPerBlock.y);
+
+    grayscale_unrolled<<<numberOfBlocks , threadsPerBlock>>>(input , output , width , height , channels , pixelsPerThread);
+    cudaDeviceSynchronize();
+}
