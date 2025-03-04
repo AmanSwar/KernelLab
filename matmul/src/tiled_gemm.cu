@@ -3,6 +3,7 @@
 __global__ void gemm_tiled(float *A, float *B, float *C, 
                           float alpha, float beta, 
                           int M, int N, int K) {
+    
     const int TILE_SIZE = 32;
     
     __shared__ float s_A[TILE_SIZE][TILE_SIZE];
@@ -10,7 +11,6 @@ __global__ void gemm_tiled(float *A, float *B, float *C,
     
     int bx = blockIdx.x, by = blockIdx.y;
     int tx = threadIdx.x, ty = threadIdx.y;
-    
     int row = by * TILE_SIZE + ty; 
     int col = bx * TILE_SIZE + tx; 
     
