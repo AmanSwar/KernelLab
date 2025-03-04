@@ -37,3 +37,11 @@ __global__ void greyscale_shared(
 
     }
 }
+
+
+void launch_shared(const float *input , float *output , int width , int height , int channels){
+    dim3 blockSize(16 , 16);
+    dim3 gridSize((width + blockSize.x -1 / blockSize.x) , (height + blockSize.y - 1) / blockSize.y);
+    greyscale_shared<<<gridSize , blockSize>>>(input, output, width, height, channels);
+    cudaDeviceSynchronize();
+}
