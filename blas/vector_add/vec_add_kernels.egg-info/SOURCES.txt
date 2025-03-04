@@ -1,0 +1,8 @@
+include/vec_add_kernel.h
+python/binding.cpp
+src/multielement_vecadd.cu
+src/naive_vecadd.cu
+vec_add_kernels.egg-info/PKG-INFO
+vec_add_kernels.egg-info/SOURCES.txt
+vec_add_kernels.egg-info/dependency_links.txt
+vec_add_kernels.egg-info/top_level.txt
