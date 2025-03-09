@@ -1,13 +1,12 @@
 
-# **KernelLab 🚀**  
+# **KernelLab**  
 **High-Performance CUDA Kernels for Deep Learning & HPC**  
 Making GPUs go Brrrrr....
 
 ![CUDA](https://img.shields.io/badge/CUDA-Optimized-green?style=for-the-badge&logo=nvidia)  
 ![C++](https://img.shields.io/badge/C%2B%2B-17%2B-blue?style=for-the-badge&logo=c%2B%2B)  
-![Optimization](https://img.shields.io/badge/Optimized%20Kernels-Warp%20%7C%20Tensor%20Core%20%7C%20Shared%20Memory-orange?style=for-the-badge)  
 
-## **⚡ About KernelLab**  
+## **About KernelLab**  
 **KernelLab** is a collection of **highly optimized CUDA kernels** designed for deep learning, high-performance computing (HPC), and general-purpose GPU acceleration. Each kernel includes multiple levels of optimization—from **naïve implementations** to **shared memory, warp-level, vectorized, and tensor-core optimized** versions.  
 
 ---
@@ -15,10 +14,8 @@ Making GPUs go Brrrrr....
 ## **🛠️ Features**  
 - 🚀 **Optimized CUDA kernels** for **deep learning, matrix operations, and image processing**  
 - 🔥 **Multiple optimization techniques**: Shared Memory, Coalesced Memory Access, Warp-Level Parallelism, Tensor Cores  
-- ⚡ **Matrix Multiplication (GEMM) with Tensor Cores (WMMA)**  
-- 🖼️ **Image Processing Kernels (Greyscale, Blur) optimized with Fused Multiply-Add (FMA) & Vectorization**  
 - 🔄 **Benchmark comparisons against cuBLAS, cuDNN, and PyTorch CUDA kernels**  
-- 📊 **Optimized for modern NVIDIA GPUs (Ampere, Ada Lovelace, Hopper, etc.)**  
+- 📊 **Currently Optimized for Ampere architecture (cuz I am GPU poor)**  
 
 ---
 
@@ -52,15 +49,7 @@ Making GPUs go Brrrrr....
 
 ---
 
-## **🚀 Benchmarks**  
-KernelLab includes **benchmarking scripts** to compare performance against:  
-- 🟢 **cuBLAS & cuDNN** (for matrix ops)  
-- 🔴 **PyTorch CUDA Kernels** (for deep learning ops)  
-- 🔵 **Custom Implementations** (for comparison between naïve & optimized)  
-
----
-
-## **📝 TODO & Future Plans**  
+## **📝 Currenlty implementing / TODO & Future Plans**  
 - [ ] **Self-Attention CUDA Kernel**  
 - [ ] **Flash Attention Kernel Optimization**  
 - [ ] **LeakyReLU Kernel**  
@@ -87,5 +76,3 @@ For discussions & suggestions, open an issue or DM me on GitHub!
 ### **🔥 KernelLab: Pushing CUDA Performance to the Next Level! 🔥**  
 
 ---
-
-Now your **README** has **detailed** optimizations for each kernel and looks **polished & professional**! 🚀🔥
