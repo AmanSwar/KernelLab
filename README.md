@@ -12,10 +12,10 @@ Making GPUs go Brrrrr....
 ---
 
 ## **🛠️ Features**  
-- 🚀 **Optimized CUDA kernels** for **deep learning, matrix operations, and image processing**  
-- 🔥 **Multiple optimization techniques**: Shared Memory, Coalesced Memory Access, Warp-Level Parallelism, Tensor Cores  
-- 🔄 **Benchmark comparisons against cuBLAS, cuDNN, and PyTorch CUDA kernels**  
-- 📊 **Currently Optimized for Ampere architecture (cuz I am GPU poor)**  
+- **Optimized CUDA kernels** for **deep learning, matrix operations, and image processing**  
+- **Multiple optimization techniques**: Shared Memory, Coalesced Memory Access, Warp-Level Parallelism, Tensor Cores  
+- **Benchmark comparisons against cuBLAS, cuDNN, and PyTorch CUDA kernels**  
+- **Currently Optimized for Ampere architecture (cuz I am GPU poor)**  
 
 ---
 
