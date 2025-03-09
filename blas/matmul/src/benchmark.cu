@@ -80,7 +80,7 @@ std::vector<BenchmarkResult> benchmark_gemm(int M, int N, int K, int num_runs = 
     
     // Pointers to function types
     typedef void (*GemmKernelFunc)(float*, float*, float*, float, float, int, int, int);
-    typedef void (*GemmWarpFunc)(float*, float*, float*, int, int, int);  // For warp implementation
+    typedef void (*GemmWarpFunc)(float*, float*, float*, int, int, int); 
     
    
     cudaMemset(d_C, 0, M * N * sizeof(float));
@@ -116,7 +116,8 @@ std::vector<BenchmarkResult> benchmark_gemm(int M, int N, int K, int num_runs = 
         {"Tiled", (void*)launch_gemm_tiled, false},
         {"Optimized Tiled", (void*)launch_gemm_optiled, false},
         {"Register Blocked", (void*)launch_gemm_regblock, false},
-        {"Warp", (void*)launch_gemm_warp, true}
+        // {"Warp", (void*)launch_gemm_warp, true},
+        {"wmma tensor cores" , (void*)launch_tensor_core_gemm , false}
     };
     
     // Benchmark each kernel
@@ -173,7 +174,7 @@ void print_results(const std::vector<BenchmarkResult>& results, int M, int N, in
     std::cout << "===============================================" << std::endl;
     std::cout << std::left << std::setw(20) << "Implementation" 
               << std::right << std::setw(15) << "Time (ms)" 
-              << std::setw(15) << "Correct?" 
+            //   << std::setw(15) << "Correct?" 
               << std::setw(15) << "Speedup" << std::endl;
     std::cout << "-----------------------------------------------" << std::endl;
     
@@ -189,7 +190,7 @@ void print_results(const std::vector<BenchmarkResult>& results, int M, int N, in
         double speedup = cublas_time / result.execution_time_ms;
         std::cout << std::left << std::setw(20) << result.name 
                   << std::right << std::setw(15) << std::fixed << std::setprecision(3) << result.execution_time_ms 
-                  << std::setw(15) << (result.correct_result ? "Yes" : "No")
+                //   << std::setw(15) << (result.correct_result ? "Yes" : "No")
                   << std::setw(15) << std::fixed << std::setprecision(3) << speedup << "x" << std::endl;
     }
     std::cout << "===============================================" << std::endl;
@@ -230,7 +231,7 @@ int main(int argc, char** argv) {
     };
     
     for (const auto& size : additional_sizes) {
-        if (M == size[0] && N == size[1] && K == size[2]) continue; // Skip if already tested
+        if (M == size[0] && N == size[1] && K == size[2]) continue; 
         
         printf("\nRunning additional benchmark with M=%d, N=%d, K=%d, runs=%d\n", 
                size[0], size[1], size[2], num_runs);
