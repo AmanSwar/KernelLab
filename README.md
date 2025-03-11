@@ -4,10 +4,10 @@ Making GPUs go Brrrrr....
 **High-Performance CUDA Kernels for Deep Learning & HPC**  
 
 
-![LOGO](https://github.com/AmanSwar/KernelLab/blob/master/logo.png)
+
 ![CUDA](https://img.shields.io/badge/CUDA-Optimized-green?style=for-the-badge&logo=nvidia)  
 ![C++](https://img.shields.io/badge/C%2B%2B-17%2B-blue?style=for-the-badge&logo=c%2B%2B)  
-
+![LOGO](https://github.com/AmanSwar/KernelLab/blob/master/logo.png)
 ## **About KernelLab**  
 **KernelLab** is a collection of **highly optimized CUDA kernels** designed for deep learning, high-performance computing (HPC), and general-purpose GPU acceleration. Each kernel includes multiple levels of optimization—from **naïve implementations** to **shared memory, warp-level, vectorized, and tensor-core optimized** versions.  
 
