@@ -2,7 +2,7 @@
 # **KernelLab**  
 **High-Performance CUDA Kernels for Deep Learning & HPC**  
 Making GPUs go Brrrrr....
-
+![LOGO](https://github.com/AmanSwar/KernelLab/blob/master/logo.png)
 ![CUDA](https://img.shields.io/badge/CUDA-Optimized-green?style=for-the-badge&logo=nvidia)  
 ![C++](https://img.shields.io/badge/C%2B%2B-17%2B-blue?style=for-the-badge&logo=c%2B%2B)  
 
