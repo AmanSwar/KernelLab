@@ -2,8 +2,10 @@
 #include <cstdlib>
 #include <cuda_runtime.h>
 #include "../include/softmax_kernel.h"
-// #include <torch/torch.h>   
 
+#ifndef NO_TORCH
+#include <torch/torch.h>   
+#endif
 
 #define CUDA_CHECK(err) \
     if (err != cudaSuccess) { \
@@ -66,37 +68,65 @@ int main() {
     benchmark_kernel(launch_naive_softmax, "Naive Softmax");
     benchmark_kernel(launch_shared_memory_softmax, "Shared Memory Softmax");
     benchmark_kernel(launch_warp_optimized_softmax, "Warp Optimized Softmax");
-    benchmark_kernel(launch_block_optimized_softmax, "block Optimized Softmax");
+    benchmark_kernel(launch_block_optimized_softmax, "Block Optimized Softmax");
     benchmark_kernel(launch_fused_softmax, "SOTA Optimized Softmax");
-    // ---- Benchmark against torch::softmax using libtorch ----
 
-    // // Create a PyTorch tensor on CUDA from the host input.
-    // auto options = torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA);
-    // torch::Tensor input_tensor = torch::from_blob(h_input, {N, D}, options).clone();
-    // torch::Tensor output_tensor;
+#ifndef NO_TORCH
+    try {
+        // ---- Benchmark against torch::softmax using libtorch ----
+        
+        // Create a new tensor on CUDA device directly
+        auto options = torch::TensorOptions()
+            .dtype(torch::kFloat32)
+            .device(torch::kCUDA);
+        
+        // Create a tensor with the same dimensions but on the device
+        torch::Tensor input_tensor = torch::empty({N, D}, options);
+        
+        // Copy host data to the device tensor
+        CUDA_CHECK(cudaMemcpy(
+            input_tensor.data_ptr<float>(), 
+            h_input, 
+            mem_size, 
+            cudaMemcpyHostToDevice));
+        
+        torch::Tensor output_tensor;
 
-    // // Warmup run.
-    // output_tensor = torch::softmax(input_tensor, /*dim=*/1);
-    // cudaDeviceSynchronize();
+        // Warmup run.
+        output_tensor = torch::softmax(input_tensor, /*dim=*/1);
+        CUDA_CHECK(cudaDeviceSynchronize());
 
-    // // Create CUDA events for PyTorch softmax timing.
-    // cudaEvent_t start, stop;
-    // CUDA_CHECK(cudaEventCreate(&start));
-    // CUDA_CHECK(cudaEventCreate(&stop));
+        // Create CUDA events for PyTorch softmax timing.
+        cudaEvent_t start, stop;
+        CUDA_CHECK(cudaEventCreate(&start));
+        CUDA_CHECK(cudaEventCreate(&stop));
 
-    // CUDA_CHECK(cudaEventRecord(start));
-    // for (int i = 0; i < iterations; i++) {
-    //     output_tensor = torch::softmax(input_tensor, 1);
-    // }
-    // CUDA_CHECK(cudaEventRecord(stop));
-    // CUDA_CHECK(cudaEventSynchronize(stop));
+        CUDA_CHECK(cudaEventRecord(start));
+        for (int i = 0; i < iterations; i++) {
+            output_tensor = torch::softmax(input_tensor, 1);
+        }
+        CUDA_CHECK(cudaEventRecord(stop));
+        CUDA_CHECK(cudaEventSynchronize(stop));
 
-    // float elapsed_ms;
-    // CUDA_CHECK(cudaEventElapsedTime(&elapsed_ms, start, stop));
-    // std::cout << "Torch Softmax average time: " << (elapsed_ms / iterations) << " ms" << std::endl;
+        float elapsed_ms;
+        CUDA_CHECK(cudaEventElapsedTime(&elapsed_ms, start, stop));
+        std::cout << "Torch Softmax average time: " << (elapsed_ms / iterations) << " ms" << std::endl;
 
-    // CUDA_CHECK(cudaEventDestroy(start));
-    // CUDA_CHECK(cudaEventDestroy(stop));
+        CUDA_CHECK(cudaEventDestroy(start));
+        CUDA_CHECK(cudaEventDestroy(stop));
+    } catch (const c10::Error& e) {
+        std::cerr << "PyTorch error: " << e.what() << std::endl;
+        std::cerr << "PyTorch benchmark skipped due to error" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Standard exception: " << e.what() << std::endl;
+        std::cerr << "PyTorch benchmark skipped due to error" << std::endl;
+    } catch (...) {
+        std::cerr << "Unknown error in PyTorch section" << std::endl;
+        std::cerr << "PyTorch benchmark skipped due to error" << std::endl;
+    }
+#else
+    std::cout << "PyTorch comparison skipped - libtorch not available" << std::endl;
+#endif
 
     // Cleanup.
     CUDA_CHECK(cudaFree(d_input));
