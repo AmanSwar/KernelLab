@@ -5,9 +5,9 @@
 
 __global__ void softmax_shared(float *input, float *output, int N, int D) {
     extern __shared__ float shared_d[];
-    float *s_data = shared_d;              // Input data in shared memory
-    float *s_max = &shared_d[blockDim.x];  // Max value per thread
-    float *s_sum = &shared_d[blockDim.x * 2]; // Sum value per thread
+    float *s_data = shared_d;              
+    float *s_max = &shared_d[blockDim.x];  
+    float *s_sum = &shared_d[blockDim.x * 2]; 
 
     int row = blockIdx.x;
     int tid = threadIdx.x;
@@ -17,7 +17,7 @@ __global__ void softmax_shared(float *input, float *output, int N, int D) {
     // Load data into shared memory in chunks
     float thread_max = -INFINITY;
     for (int i = tid; i < D; i += blockDim.x) {
-        float val = (i < D) ? input[row * D + i] : -INFINITY;
+        float val = input[row * D + i];
         s_data[i] = val;
         thread_max = fmaxf(thread_max, val);
     }
