@@ -4,7 +4,7 @@
 
 
 #include "../include/vec_add_kernel.h"
-#include "util.cpp"
+#include "util.cuh"
 
 
 //float to float4 conversion via memory address : 
@@ -18,7 +18,11 @@ __global__ void vector_add_f32_vectorized(
     int N
 ){
     //idx => multiple of 4 (0 , 4 , 8)
-    int idx = 4 * (blockIdx.x + blockDim.x + threadIdx.x);
+    int idx = 4 * (blockIdx.x * blockDim.x + threadIdx.x);
+
+    // if(idx == 0){
+    // printf("%f" , a[0]);
+    // }
 
     if (idx < N){
         // access float -> convert and store it in reg
@@ -37,11 +41,17 @@ __global__ void vector_add_f32_vectorized(
 
 
 void launchVectorized(float *a , float *b , float *c , int size){
-    int blockSize = 256;
-    int gridSize = (size / 4 + blockSize - 1) / blockSize;
+    // std::cout << a[0];
+    int blockSize = 512;
+    int gridSize = ((size/4) + blockSize - 1) / blockSize;
     vector_add_f32_vectorized<<<gridSize, blockSize>>>(a, b , c, size);
     cudaDeviceSynchronize();
 }
 
 
+int main(){
+    int N = 100000;
+    int iter = 100;
+    vec_add::run_vectorAddBenchmark(launchVectorized, N, iter);
 
+}
