@@ -38,6 +38,7 @@ void cudnn_sigmoid(float* input , float* output , int size , int iter=100){
     cudnnCreate(&handle);
 
     cudnnTensorDescriptor_t tensorDesc;
+    cudnnCreateTensorDescriptor(&tensorDesc);
     cudnnSetTensor4dDescriptor(tensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, n,  c,  h, size);
 
     cudnnActivationDescriptor_t sigmoidDesc;
@@ -92,7 +93,7 @@ inline void init_arr(float *a, int N) {
 }
 
 
-inline bool verify(float* kernel_out , float* out , int N , float err = 1e-4){
+inline bool verify(float* kernel_out , float* out , int N , float err = 0.0001){
 
     for(int i = 0 ; i < N ; i++){
         if(std::abs(kernel_out[i] - out[i]) > err){
