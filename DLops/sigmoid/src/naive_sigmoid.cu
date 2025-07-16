@@ -12,7 +12,7 @@ __global__ void sigmoid_kernel(
     int global_tid = blockDim.x* blockIdx.x + threadIdx.x;
 
     if(global_tid < N){
-        output[global_tid] = 1 / (1 - __expf(input[global_tid]));
+        output[global_tid] = 1 / (1 + __expf(-input[global_tid]));
     }
 
 
