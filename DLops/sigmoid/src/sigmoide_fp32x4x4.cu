@@ -20,7 +20,7 @@ __global__ void sigmoid_fp32x4x4_kernel(
     //locally we will cover
     // 0 -> 0 , 1 ,2 ,3
     // 4 ... , 8 , 12ls
-    
+
     if(global_idx < N){
 
         #pragma unroll
@@ -48,8 +48,8 @@ void launch_sigmoid_kernel(
     float* output,
     int N
 ){
-    int block_dim = 512;
-    int threads_needed = (N + 15 / 16); // one thread takes care of 16 values
+    int block_dim = 1024;
+    int threads_needed = (N + 15) / 16; // one thread takes care of 16 values
     int grid_dim = (threads_needed + block_dim - 1) / block_dim;
 
     sigmoid_fp32x4x4_kernel<<<grid_dim , block_dim>>>(input , output , N);
