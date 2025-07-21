@@ -1,4 +1,3 @@
-#include <cmath>
 #include <cuda_runtime.h>
 #include "util.cuh"
 
