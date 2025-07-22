@@ -1,9 +1,5 @@
-#include <__clang_cuda_builtin_vars.h>
-#include <__clang_cuda_intrinsics.h>
 #include <cuda_runtime.h>
 #include "util.cuh"
-
-
 
 
 template <const int NUM_THREADS = 256>
@@ -52,5 +48,11 @@ void launch_block_all_reduce_fp32(float* a , float* b , int N){
 
     block_all_reduce_f32_kernel<<<grid_Dim , block_Dim>>>(a, b, N);
 
-    cudaDeviceSynchronize();
+}
+
+int main(){
+    int N = 100000;
+    int iter = 100;
+
+    reduceBenchmark(launch_block_all_reduce_fp32 , N , iter);
 }
