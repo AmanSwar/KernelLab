@@ -1,5 +1,6 @@
 #pragma once
 #include <__clang_cuda_builtin_vars.h>
+#include <__clang_cuda_runtime_wrapper.h>
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
 #include <cudnn.h>
@@ -13,7 +14,7 @@
 #define WARP_SIZE 32
 
 template <const int warp_size = WARP_SIZE>
-__device__ float warp_reduce_max(float val){
+__forceinline__ __device__ float warp_reduce_max(float val){
     unsigned int mask = 0xFFFFFFFF;
 
     for(int offset = WARP_SIZE >> 1 ; offset >=1 ; offset >>=1){
@@ -111,9 +112,8 @@ __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
 }
 
 template <const int NUM_THREADS = 256 >
-__device__ float block_all_reduce_f32x4_kernel(
+__device__ float block_all_reduce_f32x4(
     float *input ,
-    float* output,
     int N
 ){
     int tid = threadIdx.x;
@@ -157,11 +157,11 @@ __device__ float block_all_reduce_f32x4_kernel(
 
 
 
-inline bool softmaxCUDNN(float* input , float* output , int iter){
+inline void softmaxCUDNN(float* input , float* output , int M , int N , int iter){
     const int BATCH_SIZE = 1;
     const int C = 1;
-    const int H = 1;
-    const int W = 1;
+    const int H = M;
+    const int W = N;
 
     cudnnHandle_t handle;
     cudnnCreate(&handle);
@@ -258,11 +258,12 @@ inline void init(dtype* a , int N){
 }
 
 template <class dtype>
-void benchmarkSoftmax(void (*kernel)(dtype* input , dtype* output , int) , int N , int iter){
+void benchmarkSoftmax(void (*kernel)(dtype* input , dtype* output , int , int) , int M , int N, int iter){
     
-
-    dtype* a = new dtype[N];
-    dtype* b = new dtype[N];
+    dtype* a = new dtype[M * N];
+    dtype* b = new dtype[M *N];
+    dtype* c = new dtype[M * N];
+    
 
     init(a);
 
@@ -280,7 +281,7 @@ void benchmarkSoftmax(void (*kernel)(dtype* input , dtype* output , int) , int N
     cudaEventCreate(&end);
 
     //warmup run
-    kernel(input , output , N);
+    kernel(input , output , M , N);
 
 
     cudaEventRecord(start);
@@ -296,8 +297,11 @@ void benchmarkSoftmax(void (*kernel)(dtype* input , dtype* output , int) , int N
     cudaEventElapsedTime(&ms, start, end);
 
     std::cout << "KERNEL TIME : " << ms << std::endl;
-    // std::cout << "KERNEL GFLOPS : " << 
+    // std::cout << "KERNEL GFLOPS : " <<
+    softmaxCUDNN(input, cudnn_output, M, N, iter);
+    cudaMemcpy(c, cudnn_output , sizeof(float) * M * N , cudaMemcpyDeviceToHost);
+    cudaMemcpy(b , output , sizeof(float) * M * N , cudaMemcpyDeviceToHost);
+    std::cout << verify(cudnn_output , output);
 
-    
 }
 
