@@ -60,7 +60,7 @@ target_link_libraries(softmax_benchmark ${CUDA_LIBRARIES} ${TORCH_LIBRARIES})
 # Set CUDA flags
 set_target_properties(softmax_benchmark PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "70;75;80"  # Adjust based on your GPU architecture
+    CUDA_ARCHITECTURES "80"  # Adjust based on your GPU architecture
 )
 
 # Install the executable
