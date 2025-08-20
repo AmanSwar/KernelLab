@@ -10,16 +10,14 @@ __global__ void block_all_reduce_f32x4_kernel(
     int N
 ){
     int tid = threadIdx.x;
-    int global_idx = (blockDim.x * blockIdx.x + threadIdx.x)*4;
-
+    int global_idx = (blockDim.x * blockIdx.x + threadIdx.x) * 4;
     constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
     __shared__ float reduce_smem[NUM_WARPS];
     
     // float4 reg_a = FLOAT4(input[global_idx]);
     float4 reg_a;
-    
-    
-    if (global_idx + 3 < N) {
+
+    if (global_idx + 4 < N) {
       reg_a = FLOAT4(input[global_idx]);
     } else {
       // Handle tail end of the data safely.
@@ -28,7 +26,8 @@ __global__ void block_all_reduce_f32x4_kernel(
       reg_a.z = (global_idx + 2 < N) ? input[global_idx + 2] : 0.0f;
       reg_a.w = (global_idx + 3 < N) ? input[global_idx + 3] : 0.0f;
     }
-    float sum = (global_idx + 3 < N) ? (reg_a.x + reg_a.y + reg_a.z + reg_a.w) : 0.0f;
+
+    float sum =  (reg_a.x + reg_a.y + reg_a.z + reg_a.w);
     int warp = tid / WARP_SIZE;
     int lane = tid % WARP_SIZE;
 
@@ -46,7 +45,8 @@ __global__ void block_all_reduce_f32x4_kernel(
         sum = warp_reduce_sum_f32<WARP_SIZE>(sum);
     }
     if(tid == 0){
-        atomicAdd(output , sum);
+        // atomicAdd(output , sum);
+        output[0] = sum;
     }
 }
 
@@ -58,7 +58,7 @@ void launch_block_all_reduce_fp32x4(float *a, float *b, int N) {
 }
 
 int main() {
-  int N = 100000;
+  int N = 1000000;
   int iter = 100;
 
   reduceBenchmark<float>(launch_block_all_reduce_fp32x4, N, iter);
