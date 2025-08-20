@@ -15,6 +15,7 @@ using namespace nvcuda; // WMMA API
 #define WMMA_K 16
 #define WARPS_PER_BLOCK (BLOCK_SIZE / WARP_SIZE)
 
+
 __global__ void tensor_core_gemm(
     half* A, 
     half* B, 
