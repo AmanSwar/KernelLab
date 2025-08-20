@@ -20,7 +20,6 @@ __global__ void fused_softmax_kernel(T* input, T* output, int N, int D) {
     float thread_max = -INFINITY;
     float thread_sum = 0.0f;
     
-    // Process all elements in the row with a grid-stride approach
     for (int base_col = 0; base_col < D; base_col += THREADS_PER_BLOCK * ITEMS_PER_THREAD) {
         #pragma unroll
         for (int i = 0; i < ITEMS_PER_THREAD; i++) {

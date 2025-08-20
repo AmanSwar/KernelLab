@@ -2,6 +2,7 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include "../include/softmax_kernel.h"
+#include "util.cuh"
 
 __global__ void softmax_shared(float *input, float *output, int N, int D) {
     extern __shared__ float shared_d[];
@@ -52,13 +53,13 @@ __global__ void softmax_shared(float *input, float *output, int N, int D) {
         }
         __syncthreads();
     }
-    float sum = s_sum[0];
+    float sum = s_sum[0];   
 
     // Write output
     for (int i = tid; i < D; i += blockDim.x) {
         if (i < D) {
             output[row * D + i] = s_data[i] / sum;
-        }
+        }       
     }
 }
 
@@ -76,4 +77,11 @@ void launch_shared_memory_softmax(float* d_input, float* d_output, int N, int D)
 
     softmax_shared<<<blocksPerGrid, threadsPerBlock, sharedMemSize>>>(d_input, d_output, N, D);
     cudaDeviceSynchronize();
+}
+
+int main(){
+    int N = 4096;
+    int M = 2048;
+    int iter = 100;
+    benchmarkSoftmax<float>(launch_shared_memory_softmax, M, N, iter);
 }
