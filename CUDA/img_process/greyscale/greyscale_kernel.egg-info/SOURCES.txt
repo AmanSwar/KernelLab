@@ -1,0 +1,6 @@
+greyscale_kernel.egg-info/PKG-INFO
+greyscale_kernel.egg-info/SOURCES.txt
+greyscale_kernel.egg-info/dependency_links.txt
+greyscale_kernel.egg-info/top_level.txt
+python/binding.cpp
+src/naive_greyscale.cu
