@@ -36,7 +36,7 @@ def layer_norm_fwd(
 
     _x = _numer / _row_var
 
-    _x = _x * w + B
+    _x = _x * w + b
     output_ptr = pid * stride + output_matrix + col_offset
     tl.store(output_ptr , _x , mask=mask)
 
@@ -62,7 +62,8 @@ def launch_ln_fwd(
         M=M,
         N=N,
         BLOCK_SIZE= BLOCK_SIZE,
-        num_warps=num_warps
+        num_warps=num_warps,
+        num_stages=4
     )
 
     return output_matrix
@@ -141,3 +142,93 @@ def launch_triton_ln_kernel_official(
 
     return y
 
+if __name__ == "__main__":
+
+
+
+    def test():
+
+        M , N = 1000 , 10000
+        inp = torch.rand(size=(M , N)).cuda()
+
+        weight = torch.ones(size=(N,)).cuda()
+        bias = torch.zeros(size=(N,)).cuda()
+
+
+        out1 = launch_ln_fwd(
+            input_matrix=inp,
+            W=weight,
+            B=bias
+        )
+
+        out2 = torch.nn.functional.layer_norm(
+            inp,
+            (N,),
+            weight=weight,
+            bias=bias,
+            eps=1e-5
+        )
+
+
+        print("Triton output:")
+        print(out1)
+        print("\nPyTorch output:")
+        print(out2)
+        print(f"\nMax difference: {torch.max(torch.abs(out1 - out2)).item()}")
+
+
+    DEVICE = torch.device("cuda")
+
+    @triton.testing.perf_report(
+        triton.testing.Benchmark(
+            x_names=['N'],
+            x_vals=[i for i in range(1000 , 10000 , 1000)],
+            line_arg='provider',
+            line_vals=['mine', 'torch' , 'triton'],
+            line_names=["Mine", "Torch" , 'Triton'],
+            styles=[('blue', '-'), ('green', '-') , ('red' , '-')],
+            ylabel="GB/s",
+            plot_name="LN_forward_pass-performance",
+            args={'M': 1000}
+        )
+    )
+    def benchmark(M , N , provider):
+
+        inp = torch.rand(size=(M , N)).cuda()
+
+        weight = torch.ones(size=(N,)).cuda()
+        bias = torch.zeros(size=(N,)).cuda()
+        stream = getattr(torch, DEVICE.type).Stream()
+        getattr(torch, DEVICE.type).set_stream(stream)
+
+        if provider == 'torch':
+            ms = triton.testing.do_bench(lambda: torch.nn.functional.layer_norm(
+            inp,
+            (N,),
+            weight=weight,
+            bias=bias,
+            eps=1e-5
+        ))
+        if provider == 'mine':
+            ms = triton.testing.do_bench(lambda: launch_ln_fwd(
+            input_matrix=inp,
+            W=weight,
+            B=bias
+        ))
+            
+        if provider == "triton":
+            ms = triton.testing.do_bench(lambda : launch_triton_ln_kernel_official(
+                x=inp,
+                W=weight,
+                B=bias
+            ))
+
+        gbps = lambda ms: 2 * inp.numel() * inp.element_size() * 1e-9 / (ms * 1e-3)
+
+        return gbps(ms)
+    
+
+    M , N = 1000 , 10000
+
+
+    benchmark.run(show_plots=True)
