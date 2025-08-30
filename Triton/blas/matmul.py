@@ -124,3 +124,60 @@ def matmul(a , b):
     return c
 
 
+if __name__ == "__main__":
+    
+    def test_kernel(
+            size,
+            atol=1e-2,
+            rtol=1e-1,
+            device=DEVICE
+    ):
+        torch.manual_seed(0)
+        a = torch.randn((512,512) , device=DEVICE , dtype=torch.float16)
+        b = torch.randn((512 , 512) , device=DEVICE , dtype=torch.float16)
+
+
+        c_tri = matmul(a , b)
+        c_ref = torch.matmul(a , b)
+
+        torch.testing.assert_close(c_tri , c_ref , atol=atol , rtol=rtol)
+
+
+
+        print("pass")
+
+
+    configs = [
+        triton.testing.Benchmark(
+            x_names = ["M", "N", "K"], # we can increase multiple dimensions simultaneously while benchmarking
+            x_vals = [128 * i for i in range(2, 33)],
+            line_arg = "provider", 
+            line_vals = ["torch", "triton"],
+            line_names = ["PyTorch", "Triton"],
+            styles = [("green", "-"), ("blue", "-")],
+            ylabel = "TFLOPS", 
+            plot_name = "matmul-performance",
+            args={},
+        )
+    ]
+
+    @triton.testing.perf_report(configs)
+    def benchmark(M, N, K, provider):
+        a = torch.randn((M, K), device=DEVICE, dtype=torch.float16)
+        b = torch.randn((K, N), device=DEVICE, dtype=torch.float16)
+        quantiles = [0.5, 0.05, 0.95]
+        if provider == 'torch':
+            ms, min_ms, max_ms = triton.testing.do_bench(lambda: torch.matmul(a, b), quantiles=quantiles)
+        if provider == 'triton':
+            ms, min_ms, max_ms = triton.testing.do_bench(lambda: matmul(a, b), quantiles=quantiles)
+        perf = lambda ms: 3 * M * N * K * 1e-12 / (ms * 1e-3)
+            # 3 = number of memory operations (2 read + 1 write)
+            # M * N * K = number of elements per memory op
+            # 1e-12 converts flops to Teraflops
+            # 1e-3 converts milliseconds to seconds
+        return perf(ms), perf(max_ms), perf(min_ms)
+
+
+    test_kernel(size=(1024 , 1024))
+
+    benchmark.run(show_plots=True)
