@@ -48,3 +48,33 @@ def launch_geglu_forward(gate, up):
     )
     return out
 
+
+def _geglu_bwd_kernel(DW, e, g, N, BLOCK_SIZE: tl.constexpr):
+
+    pid = tl.program_id(0)
+
+    offsets = pid * N + tl.arange(0, BLOCK_SIZE)
+
+    mask = offsets < N
+
+    dw_row = tl.load(DW + offsets, mask=mask, other=0)
+    e_row = tl.load(e + offsets, mask=mask, other=0)
+    g_row = tl.load(g + offsets, mask=mask, other=0)
+
+    f_partial_row = 0.5 * (tl.math.erf(tl.math.rsqrt(2.0) * e_row) + 1.0)
+    f_row = f_partial_row * e_row
+
+    h_row = f_row * g_row
+    df_row = dw_row * f_row
+
+    dg_row = dw_row * g_row
+
+    _SQRT_CONST = 0.3989422804014327
+    df_de = f_partial_row + _SQRT_CONST * e_row * tl.exp(-0.5 * e_row * e_row)
+
+    de_row = dg_row.to(tl.float32) * df_de
+    de_row = de_row.to(dw_row.dtype)
+
+    tl.store(DW + offsets, h_row, mask=mask)  # h  = f * g
+    tl.store(e + offsets, df_row, mask=mask)  # df = DW * f
+    tl.store(g + offsets, de_row, mask=mask)
