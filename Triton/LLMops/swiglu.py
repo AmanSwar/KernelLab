@@ -132,3 +132,31 @@ def launch_swiglu_bwd_elementwise(
         x, dout, W1, W2, dx, dW1, dW2, bs, M, N, BLOCK_SIZE=BLOCK_SIZE
     )
     return dx, dW1, dW2
+
+
+def swiglu_fwd_torch(x: torch.Tensor, W1: torch.Tensor, W2: torch.Tensor):
+    # x: (bs, M, N); W1,W2: (M,N)
+    y = x * W2.unsqueeze(0)  # broadcast to (bs,M,N)
+    swish_y = y * torch.sigmoid(y)
+    out = W1.unsqueeze(0) * x * swish_y
+    return out, y, swish_y
+
+
+def swiglu_bwd_torch(
+    dout: torch.Tensor,
+    x: torch.Tensor,
+    W1: torch.Tensor,
+    W2: torch.Tensor,
+    y=None,
+    swish_y=None,
+):
+    if y is None:
+        y = x * W2.unsqueeze(0)
+    if swish_y is None:
+        swish_y = y * torch.sigmoid(y)
+    sig = torch.sigmoid(y)
+    dswish_dy = sig + y * sig * (1 - sig)
+    dW1 = (dout * x * swish_y).sum(dim=0)  # (M,N)
+    dW2 = (dout * W1.unsqueeze(0) * (x * x) * dswish_dy).sum(dim=0)
+    dx = dout * W1.unsqueeze(0) * (swish_y + x * dswish_dy * W2.unsqueeze(0))
+    return dx, dW1, dW2
