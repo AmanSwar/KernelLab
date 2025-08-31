@@ -48,7 +48,7 @@ def launch_geglu_forward(gate, up):
     )
     return out
 
-
+@triton.jit
 def _geglu_bwd_kernel(DW, e, g, N, BLOCK_SIZE: tl.constexpr):
 
     pid = tl.program_id(0)
@@ -78,3 +78,20 @@ def _geglu_bwd_kernel(DW, e, g, N, BLOCK_SIZE: tl.constexpr):
     tl.store(DW + offsets, h_row, mask=mask)  # h  = f * g
     tl.store(e + offsets, df_row, mask=mask)  # df = DW * f
     tl.store(g + offsets, de_row, mask=mask)
+
+
+def launch_geglu_backward(DW, e , g):
+    batch_seq_len, hd = e.shape
+    N = e.numel()
+
+    BLOCK_SIZE = triton.next_power_of_2(hd)
+    grid = (batch_seq_len,) 
+
+    _geglu_bwd_kernel[grid](
+        DW,  # e_ptr
+        e,  # g_ptr
+        g,  # h_ptr
+        N,  # N
+        BLOCK_SIZE=BLOCK_SIZE,
+    )
+    return DW, e, g
