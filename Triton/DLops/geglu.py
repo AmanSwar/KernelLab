@@ -95,3 +95,25 @@ def launch_geglu_backward(DW, e , g):
         BLOCK_SIZE=BLOCK_SIZE,
     )
     return DW, e, g
+
+
+def geglu_torch(gate, up):
+    return up * torch.nn.functional.gelu(gate)
+
+
+def geglu_torch_backward(dh, gate, up):
+    gelu_gate = torch.nn.functional.gelu(gate)
+
+
+    sqrt_2_over_pi = (2.0 / torch.pi).sqrt()
+    erf_term = torch.erf(gate / (2.0).sqrt())
+    exp_term = torch.exp(-0.5 * gate * gate)
+
+    dgelu_dgate = (
+        0.5 * (1 + erf_term) + 0.5 * gate * sqrt_2_over_pi * exp_term / (2.0).sqrt()
+    )
+
+    dgate = dh * up * dgelu_dgate
+    dup = dh * gelu_gate
+
+    return dgate, dup
