@@ -97,7 +97,7 @@ __device__ __forceinline__ nv_bfloat16 block_reduce_sum_bf16(
 
   const int NUM_WARPS = (blockDim.x + WARP_SIZE - 1) / WARP_SIZE;
 
-  value = warp_reduce_sum_bf16(value);
+  value = warp_reduce_sum_bf16_fp32(value);
 
   if(lane_id == 0){
     temp_smem_ptr[warp_id] = value;
@@ -105,11 +105,24 @@ __device__ __forceinline__ nv_bfloat16 block_reduce_sum_bf16(
 
   __syncthreads();
 
+  nv_bfloat16 final_sum_bf16 = __float2bfloat16(0.0f);
 
-  value = (lane_id < NUM_WARPS) ? temp_smem_ptr[lane_id] : __float2bfloat16(0.0f);
-  value = warp_reduce_sum_bf16(value);
+  if(warp_id == 0){
+    
+    nv_bfloat16 v = (lane_id < NUM_WARPS) ? temp_smem_ptr[lane_id] : __float2bfloat16(0.0f);
 
-  return value;
+    v = warp_reduce_sum_bf16_fp32(v);
+
+    if(lane_id == 0){
+      smem_ptr[0] = v;
+    }
+    
+  }
+
+  __syncthreads();
+
+  final_sum_bf16 = smem_ptr[0];
+  return final_sum_bf16;
 
 }
 
