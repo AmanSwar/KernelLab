@@ -72,14 +72,16 @@ __device__ __forceinline__ float block_reduce_sum_fp16_fp16(half val) {
 }
 
 
-__device__ __forceinline__ nv_bfloat16 warp_reduce_sum_bf16(nv_bfloat16 val){
-  constexpr uint64_t MASK = 0xffffffff;
+__device__ __forceinline__ nv_bfloat16 warp_reduce_sum_bf16_fp32(nv_bfloat16 val){
+  const unsigned int MASK = 0xffffffff;
+  float v = __bfloat162float(val);
   #pragma unroll
-  for(int offset = MASK >> 1 ; offset >= 1 ; offset >>= 1){
-    val += __shfl_xor_sync(MASK , val , offset);
+  for(int offset = (WARP_SIZE >> 1) ; offset >= 1 ; offset >>= 1){
+    v += __shfl_xor_sync(MASK , v , offset);
   }
-  return val;
+  return __float2bfloat16(v);
 }  
+
 
 //function to reduce sum in a single block -> stored in smem
 __device__ __forceinline__ nv_bfloat16 block_reduce_sum_bf16(
@@ -93,7 +95,7 @@ __device__ __forceinline__ nv_bfloat16 block_reduce_sum_bf16(
 
   nv_bfloat16 value = smem_ptr[idx];
 
-  const int NUM_WARPS = (blockDim.x + WARP_SIZE - 1 / WARP_SIZE);
+  const int NUM_WARPS = (blockDim.x + WARP_SIZE - 1) / WARP_SIZE;
 
   value = warp_reduce_sum_bf16(value);
 
