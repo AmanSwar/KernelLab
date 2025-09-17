@@ -1,6 +1,11 @@
-#include <__clang_cuda_builtin_vars.h>
-#include <__clang_cuda_runtime_wrapper.h>
+#pragma once
+
+
+#include <cmath>
 #include <cstdint>
+#include <string>
+#include <iostream>
+
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
 #include <cuda_bf16.h>
@@ -104,4 +109,47 @@ __device__ __forceinline__ nv_bfloat16 block_reduce_sum_bf16(
 
   return value;
 
+}
+
+
+
+
+// ============= BENCHMARK and VERIFY FUNCTION ============
+
+#include <vector>
+
+void rmsnorm_cpu(
+  std::vector<float>* input_matrix,
+  std::vector<float>* output_matrix,
+  int M , int N
+){
+
+  for(int i = 0 ; i < M ; i++){
+    float sum = 0.0f;
+
+    for(int j = 0 ; j < N ; j++){
+      float elem =  input_matrix[i][j];
+      sum += (elem * elem);
+    }
+
+    float rms = std::sqrt((sum / N));
+
+    for(int j = 0 ; j < N ; j++){
+      output_matrix[i][j] = input_matrix[i][j] / rms;
+    }
+  } 
+}
+
+
+void verify(float* kernel_output , float* cpu_output , int M , int N , float tolerance = 1e-3){
+  for(int i = 0 ; i < M * N ; i++){
+    if(std::abs(kernel_output[i] - cpu_output[i]) > tolerance){
+      std::cout << "FAIL" << std::endl;
+      std::cout << "Error : " << "Kernel out : " << kernel_output[i] << " CPU out : " << cpu_output[i] << std::endl;
+      return;
+    }
+  }
+
+  std::cout << "PASS" << std::endl;
+  return;
 }
