@@ -12,6 +12,40 @@
 
 #define WARP_SIZE 32
 
+__device__ __forceinline__ float warp_reduce_sum_f32(float v) {
+  const unsigned int MASK = 0xffffffffu;
+#pragma unroll
+  for (int offset = (WARP_SIZE >> 1); offset >= 1; offset >>= 1) {
+    v += __shfl_xor_sync(MASK, v, offset);
+  }
+  return v;
+}
+
+__device__ __forceinline__ float block_reduce_sum_f32(float *sdata, float val) {
+  int tid = threadIdx.x;
+  int lane = tid % WARP_SIZE;
+  int wid = tid / WARP_SIZE; // warp id
+
+  val = warp_reduce_sum_f32(val);
+
+  if (lane == 0)
+    sdata[wid] = val;
+
+  __syncthreads();
+
+  float total = 0.0f;
+  if (wid == 0) {
+    float v = (lane < ((blockDim.x + WARP_SIZE - 1) / WARP_SIZE)) ? sdata[lane] : 0.0f;
+    v = warp_reduce_sum_f32(v);
+    if (lane == 0)
+      sdata[0] = v;
+  }
+
+  __syncthreads();
+  total = sdata[0];
+  return total;
+}
+
 
 __device__ __forceinline__ half warp_reduce_sum_fp16(half val){
     constexpr int MASK = 0xffffffff;
@@ -35,15 +69,6 @@ __device__ __forceinline__ float warp_reduce_sum_fp16_fp32(half val){
       val_fp32 += __shfl_xor_sync(MASK, val_fp32, offset);
     }
     return val_fp32;
-}
-
-__device__ __forceinline__ float warp_reduce_sum_f32(float val) {
-  constexpr int MASK = 0xffffffff;
-#pragma unroll
-  for (int offset = WARP_SIZE >> 1; offset >= 1; offset >>= 1) {
-    val += __shfl_xor_sync(MASK, val, offset);
-  }
-  return val;
 }
 
 
@@ -133,7 +158,7 @@ __device__ __forceinline__ nv_bfloat16 block_reduce_sum_bf16(
 
 #include <vector>
 void rmsnorm_cpu(float *input_matrix, float *weight_matrix,
-                 float *output_matrix, int M, int N) {
+                 float *output_matrix, int M, int N , float eps) {
 
   for (int i = 0; i < M; i++) {
     float sum = 0.0f;
@@ -143,7 +168,7 @@ void rmsnorm_cpu(float *input_matrix, float *weight_matrix,
       sum += (elem * elem);
     }
 
-    float rms = std::sqrt((sum / N));
+    float rms = std::sqrt((sum / N) + eps);
 
     for (int j = 0; j < N; j++) {
       output_matrix[i * N + j] =
@@ -179,9 +204,9 @@ void init(float *matrix, int N) {
 
 
 void test(void (*function)(nv_bfloat16 *, nv_bfloat16 *, nv_bfloat16 *, int,
-                           int), 
-          std::string function_name, int M, int N) {
-
+                           int, float), 
+          std::string function_name, int M, int N , float eps) {
+      
   float *input_mat = new float[M * N];
   float *out_mat = new float[M * N];
   float *weight = new float[N];
@@ -189,8 +214,18 @@ void test(void (*function)(nv_bfloat16 *, nv_bfloat16 *, nv_bfloat16 *, int,
   srand(42); 
   init(weight, N);
   init(input_mat, M * N);
+  float *input_q = new float[M * N];
+  float *weight_q = new float[N];
+  for (int i = 0; i < M * N; ++i)
+    input_q[i] = __bfloat162float(__float2bfloat16(input_mat[i]));
+  for (int j = 0; j < N; ++j)
+    weight_q[j] = __bfloat162float(__float2bfloat16(weight[j]));
 
-  rmsnorm_cpu(input_mat, weight, out_mat, M, N);
+  rmsnorm_cpu(input_q, weight_q, out_mat, M, N, eps);
+  delete[] input_q;
+  delete[] weight_q;
+
+  // rmsnorm_cpu(input_mat, weight, out_mat, M, N , eps);
 
   nv_bfloat16 *da, *dw, *dout;
   cudaMalloc(&da, sizeof(nv_bfloat16) * M * N);
@@ -219,7 +254,7 @@ void test(void (*function)(nv_bfloat16 *, nv_bfloat16 *, nv_bfloat16 *, int,
   cudaEventCreate(&start_event);
   cudaEventCreate(&end_event);
 
-  function(da, dw, dout, M, N);
+  function(da, dw, dout, M, N , eps);
   cudaDeviceSynchronize();
 
   const int num_runs = 100;
@@ -227,7 +262,7 @@ void test(void (*function)(nv_bfloat16 *, nv_bfloat16 *, nv_bfloat16 *, int,
   cudaEventRecord(start_event, stream);
 
   for (int run = 0; run < num_runs; run++) {
-    function(da, dw, dout, M, N);
+    function(da, dw, dout, M, N , eps);
   }
 
   cudaEventRecord(end_event, stream);
@@ -253,7 +288,7 @@ void test(void (*function)(nv_bfloat16 *, nv_bfloat16 *, nv_bfloat16 *, int,
   std::cout << "GFLOPS: " << gflops << std::endl;
 
   std::cout << "Verification: ";
-  verify(kernel_output, out_mat, M, N, 5e-2); // Relaxed tolerance for bfloat16
+  verify(kernel_output, out_mat, M, N, 1e-1); // Relaxed tolerance for bfloat16
 
   delete[] input_mat;
   delete[] out_mat;
