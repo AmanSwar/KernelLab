@@ -52,6 +52,7 @@ int main() {
     // ---- Benchmark the Naïve Transpose Kernel ----
     cudaEventRecord(start);
     launch_naive(d_A, d_B, N);
+    launch_naive(d_A, d_B, N);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
 
