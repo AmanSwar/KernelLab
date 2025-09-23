@@ -2,6 +2,7 @@
 #include "c10/util/BFloat16.h"
 
 #include "../src/naive_rms.cuh"
+// #include "optim_rms.cuh"
 
 #include <cassert>
 #include <torch/extension.h>
@@ -61,5 +62,6 @@ torch::Tensor fused_rmsnorm(
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("rmsnorm_kernel", &fused_rmsnorm, "Fused RMSNorm (BF16)");
+    // m.def("rmsnorm_kernel_vec", &fused_rmsnorm, "Fused RMSNorm (BF16)");
+    m.def("rmsnorm_kernel_naive", &fused_rmsnorm, "Fused RMSNorm (BF16)");
 }
