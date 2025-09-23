@@ -1,4 +1,3 @@
-
 import os
 import subprocess
 import time
@@ -9,7 +8,8 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
-from rmsnorm_kernel import rmsnorm_kernel
+from rmsnorm_kernel_vec import rmsnorm_kernel_vec 
+from rmsnorm_kernel_naive import rmsnorm_kernel_naive as rmsnorm_kernel
 
 
 TEST_SHAPES = [
@@ -25,12 +25,17 @@ TEST_SHAPES = [
 WARMUP = 10
 REPEATS = 50
 
+
+device = torch.device("cuda")
 def rmsnorm_reference(input_bf16, weight_bf16, eps=1e-6):
-    
+
     bs , seq_len , embed_dim = input_bf16.shape
     M = bs * seq_len
 
-    return torch.nn.functional.rms_norm(input_bf16 , normalized_shape=(embed_dim,) , weight=weight_bf16 , eps=eps)
+    rms = torch.nn.RMSNorm(embed_dim , device=device)
+    # return torch.nn.functional.rms_norm(input_bf16 , normalized_shape=(embed_dim,) , weight=weight_bf16 , eps=eps)
+    return rms(input_bf16)
+
 
 def compute_flops(M, N):
     # total flops = M*N*(4 + 3/N) = 4*M*N + 3*M
@@ -51,11 +56,10 @@ def time_fn(fn, *args, warmup=WARMUP, repeats=REPEATS):
     return statistics.median(times), statistics.mean(times), min(times)
 
 def main():
-   
+
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is not available. This benchmark requires CUDA.")
 
-    device = torch.device("cuda")
     torch.backends.cuda.matmul.allow_tf32 = False
 
     results = []  # list of dicts
@@ -81,6 +85,11 @@ def main():
             return out
 
         def fused_call(inp, wt, eps=1e-6):
+            out = rmsnorm_kernel_vec(inp, wt, float(eps))
+            torch.cuda.synchronize()
+            return out
+
+        def fused_call_2(inp, wt, eps=1e-6):
             out = rmsnorm_kernel(inp, wt, float(eps))
             torch.cuda.synchronize()
             return out
@@ -89,6 +98,7 @@ def main():
             out_ref = rmsnorm_reference(x, w)
             try:
                 out_fused = fused_call(x, w)
+                out_fused2 = fused_call_2(x , w)
             except Exception as e:
                 print("Fused kernel call failed on this input:", e)
                 out_fused = None
@@ -97,7 +107,17 @@ def main():
                 diff = out_ref.to(torch.float32) - out_fused.to(torch.float32)
                 max_abs_err = diff.abs().max().item()
                 mean_abs_err = diff.abs().mean().item()
-                print(f"Correctness: max_abs_err={max_abs_err:.6f}, mean_abs_err={mean_abs_err:.6f}")
+                print(f"Correctness Vectorized: max_abs_err={max_abs_err:.6f}, mean_abs_err={mean_abs_err:.6f}")
+            else:
+                print("Skipping correctness compare because fused kernel call failed.")
+
+            if out_fused is not None:
+                diff = out_ref.to(torch.float32) - out_fused2.to(torch.float32)
+                max_abs_err = diff.abs().max().item()
+                mean_abs_err = diff.abs().mean().item()
+                print(
+                    f"Correctness naive: max_abs_err={max_abs_err:.6f}, mean_abs_err={mean_abs_err:.6f}"
+                )
             else:
                 print("Skipping correctness compare because fused kernel call failed.")
         else:
@@ -116,7 +136,7 @@ def main():
                 out = x_f / rms * w_f.view(*([1] * (x_f.dim() - 1)), -1)
                 torch.cuda.synchronize()
                 return out
-            median_ref, mean_ref, min_ref = time_fn(lambda: ref_call_f32())
+            median_ref, mean_ref, min_ref = time_fn(lambda: rmsnorm_reference(x ,w))
 
         fused_available = True
         try:
@@ -127,15 +147,25 @@ def main():
             fused_available = False
             median_fused = mean_fused = min_fused = float('nan')
 
+        try:
+            _ = fused_call(x, w)
+            median_fused_2, mean_fused_2, min_fused_2 = time_fn(lambda: fused_call_2(x, w))
+        except Exception as e:
+            print("Fused kernel unavailable or failed to run:", e)
+            fused_available = False
+            median_fused = mean_fused = min_fused = float("nan")
+
         # Compute GFLOPS for each
         flops = compute_flops(M, N)
         gflops_ref = (flops / median_ref) / 1e9
         gflops_fused = (flops / median_fused) / 1e9 if fused_available else float('nan')
+        gflops_fused_2 = (flops / median_fused_2) / 1e9 if fused_available else float('nan')
 
         print(f"Shape M={M}, N={N}, flops per call ~ {flops:.2f}")
         print(f"Reference median time: {median_ref*1000:.3f} ms  -> {gflops_ref:.3f} GFLOPS")
         if fused_available:
-            print(f"Fused median time:     {median_fused*1000:.3f} ms  -> {gflops_fused:.3f} GFLOPS")
+            print(f"vectorized median time:     {median_fused*1000:.3f} ms  -> {gflops_fused:.3f} GFLOPS")
+            print(f"naive median time:     {median_fused_2*1000:.3f} ms  -> {gflops_fused:.3f} GFLOPS")
         else:
             print("Fused kernel not available for this config.")
 
