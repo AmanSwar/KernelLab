@@ -2,23 +2,23 @@ from setuptools import setup
 from torch.utils.cpp_extension import BuildExtension , CUDAExtension
 
 setup(
-    name="rmsnorm_kernel",
+    # name="rmsnorm_kernel_vec",
+    name="rmsnorm_kernel_naive",
     ext_modules=[
         CUDAExtension(
-            "rmsnorm_kernel",
-            sources=['src/binding.cu'],
+            # "rmsnorm_kernel_vec",
+            "rmsnorm_kernel_naive",
+            sources=["src/binding.cu"],
             extra_compile_args={
-                "cxx" : [],
-                "nvcc" : [
+                "cxx": [],
+                "nvcc": [
                     "-O3",
-                    "-gencode", "arch=compute_80,code=sm_80",
-                    "--expt-relaxed-constexpr"
+                    "-gencode",
+                    "arch=compute_80,code=sm_80",
+                    "--expt-relaxed-constexpr",
                 ],
             },
-            
         )
     ],
-    cmdclass={'build_ext' : BuildExtension}
+    cmdclass={"build_ext": BuildExtension},
 )
-
-
