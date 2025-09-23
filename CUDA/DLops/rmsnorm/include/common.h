@@ -48,8 +48,9 @@ void init(float *matrix, int N) {
   }
 }
 
-void test(void (*function)(const nv_bfloat16 *, const nv_bfloat16 *,
-                           nv_bfloat16 *, int, int, float),
+template <typename type>
+void test(void (*function)(const type *, const type *,
+                           type *, int, int, float),
           std::string function_name, int M, int N, float eps) {
 
   float *input_mat = new float[M * N];
@@ -61,10 +62,13 @@ void test(void (*function)(const nv_bfloat16 *, const nv_bfloat16 *,
   init(input_mat, M * N);
   float *input_q = new float[M * N];
   float *weight_q = new float[N];
-  for (int i = 0; i < M * N; ++i)
-    input_q[i] = __bfloat162float(__float2bfloat16(input_mat[i]));
-  for (int j = 0; j < N; ++j)
-    weight_q[j] = __bfloat162float(__float2bfloat16(weight[j]));
+
+  for (int i = 0; i < M * N; ++i){
+    input_q[i] = __half2float(__float2half(input_mat[i]));
+  }
+  for (int j = 0; j < N; ++j){
+    weight_q[j] = __half2float(__float2half(weight[j]));
+  }
 
   rmsnorm_cpu(input_q, weight_q, out_mat, M, N, eps);
   delete[] input_q;
@@ -72,25 +76,25 @@ void test(void (*function)(const nv_bfloat16 *, const nv_bfloat16 *,
 
   // rmsnorm_cpu(input_mat, weight, out_mat, M, N , eps);
 
-  nv_bfloat16 *da, *dw, *dout;
-  cudaMalloc(&da, sizeof(nv_bfloat16) * M * N);
-  cudaMalloc(&dw, sizeof(nv_bfloat16) * N);
-  cudaMalloc(&dout, sizeof(nv_bfloat16) * M * N);
+  type *da, *dw, *dout;
+  cudaMalloc(&da, sizeof(type) * M * N);
+  cudaMalloc(&dw, sizeof(type) * N);
+  cudaMalloc(&dout, sizeof(type) * M * N);
 
-  nv_bfloat16 *ha = new nv_bfloat16[M * N];
-  nv_bfloat16 *hw = new nv_bfloat16[N];
-  nv_bfloat16 *hout = new nv_bfloat16[M * N];
+  type *ha = new type[M * N];
+  type *hw = new type[N];
+  type *hout = new type[M * N];
 
   for (int i = 0; i < M * N; i++) {
-    ha[i] = __float2bfloat16(input_mat[i]);
+    ha[i] = __float2half(input_mat[i]);
   }
 
   for (int i = 0; i < N; i++) {
-    hw[i] = __float2bfloat16(weight[i]);
+    hw[i] = __float2half(weight[i]);
   }
 
-  cudaMemcpy(da, ha, sizeof(nv_bfloat16) * M * N, cudaMemcpyHostToDevice);
-  cudaMemcpy(dw, hw, sizeof(nv_bfloat16) * N, cudaMemcpyHostToDevice);
+  cudaMemcpy(da, ha, sizeof(type) * M * N, cudaMemcpyHostToDevice);
+  cudaMemcpy(dw, hw, sizeof(type) * N, cudaMemcpyHostToDevice);
 
   cudaStream_t stream;
   cudaEvent_t start_event, end_event;
@@ -120,11 +124,11 @@ void test(void (*function)(const nv_bfloat16 *, const nv_bfloat16 *,
   long long total_ops = 3LL * M * N;
   float gflops = (total_ops / (time_ms * 1e6)) * 1000.0f; // GFLOPS
 
-  cudaMemcpy(hout, dout, sizeof(nv_bfloat16) * M * N, cudaMemcpyDeviceToHost);
+  cudaMemcpy(hout, dout, sizeof(type) * M * N, cudaMemcpyDeviceToHost);
 
   float *kernel_output = new float[M * N];
   for (int i = 0; i < M * N; i++) {
-    kernel_output[i] = __bfloat162float(hout[i]);
+    kernel_output[i] = __half2float(hout[i]);
   }
 
   std::cout << "Function: " << function_name << std::endl;
